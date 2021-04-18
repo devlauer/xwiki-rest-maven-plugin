@@ -27,6 +27,7 @@ import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.AuthCache;
 import org.apache.http.client.CredentialsProvider;
 import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpDelete;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPut;
 import org.apache.http.client.protocol.HttpClientContext;
@@ -217,7 +218,8 @@ public abstract class XWikiRESTAbstractMojo extends AbstractMojo implements XWik
 		String spacePathPointSeparated = paramHomePath;
 		if (spacePathPointSeparated != null) {
 			if (spacePathPointSeparated.endsWith(".WebHome")) {
-				spacePathPointSeparated = spacePathPointSeparated.substring(0, spacePathPointSeparated.indexOf(".WebHome"));
+				spacePathPointSeparated = spacePathPointSeparated.substring(0,
+						spacePathPointSeparated.indexOf(".WebHome"));
 			}
 			if (spacePathPointSeparated.startsWith("xwiki:"))
 				spacePathPointSeparated = spacePathPointSeparated.substring(6, spacePathPointSeparated.length());
@@ -261,7 +263,8 @@ public abstract class XWikiRESTAbstractMojo extends AbstractMojo implements XWik
 		newPage.setContent(paramContent);
 		String relativePath = parentPath;
 		relativePath = relativePath.startsWith("/") ? relativePath : "/" + relativePath;
-		HttpPut put = new HttpPut(getXwikiRestUrl() + relativePath + SPACES_PATH + paramSpaceName + PAGES_PATH+DEFAULT_PAGE_NAME);
+		HttpPut put = new HttpPut(
+				getXwikiRestUrl() + relativePath + SPACES_PATH + paramSpaceName + PAGES_PATH + DEFAULT_PAGE_NAME);
 		put.addHeader("Accept", "application/xml");
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
 		try {
@@ -292,9 +295,9 @@ public abstract class XWikiRESTAbstractMojo extends AbstractMojo implements XWik
 						response.getStatusLine().getStatusCode() + " " + response.getStatusLine().getReasonPhrase());
 				Header contentEncoding = response.getEntity().getContentEncoding();
 				String encoding = "UTF-8";
-				if(contentEncoding!=null&&contentEncoding.getValue()!=null)
+				if (contentEncoding != null && contentEncoding.getValue() != null)
 					encoding = contentEncoding.getValue();
-				String content = IOUtils.toString(response.getEntity().getContent(),encoding);
+				String content = IOUtils.toString(response.getEntity().getContent(), encoding);
 				getLog().debug(content);
 				if (response.getStatusLine().getStatusCode() == 200) {
 					Unmarshaller unmarshaller = getUnmarshaller();
@@ -331,42 +334,49 @@ public abstract class XWikiRESTAbstractMojo extends AbstractMojo implements XWik
 		JAXBContext context = JAXBContext.newInstance("de.elnarion.xwiki.rest.model.jaxb");
 		return context;
 	}
-	
-	protected boolean addAttachmentToSpacePage(Space paramSpace,File paramAttachment)
-	{
+
+	protected boolean addAttachmentToSpacePage(Space paramSpace, File paramAttachment,
+			boolean deleteAttachmentBeforeAdding) {
 		String relativePath = getRelativeSpacePath(paramSpace.getHome());
-		HttpPut put = new HttpPut(getXwikiRestUrl() + relativePath + PAGES_PATH+DEFAULT_PAGE_NAME+ATTACHMENTS_PATH+paramAttachment.getName());
+		if (deleteAttachmentBeforeAdding) {
+			HttpDelete delete = new HttpDelete(getXwikiRestUrl() + relativePath + PAGES_PATH + DEFAULT_PAGE_NAME
+					+ ATTACHMENTS_PATH + paramAttachment.getName());
+			try (final CloseableHttpResponse response = getHttpClient().execute(delete, getHttpClientContext())) {
+			} catch (IOException e) {
+				getLog().warn("Could not delete Attachment before adding " + e.getMessage());
+				getLog().warn(e);
+			}
+		}
+		HttpPut put = new HttpPut(getXwikiRestUrl() + relativePath + PAGES_PATH + DEFAULT_PAGE_NAME + ATTACHMENTS_PATH
+				+ paramAttachment.getName());
 		put.addHeader("Accept", "application/xml");
 		try {
 			put.setEntity(new ByteArrayEntity(IOUtils.toByteArray(new FileInputStream(paramAttachment))));
 			try (final CloseableHttpResponse response = getHttpClient().execute(put, getHttpClientContext())) {
-				if (response.getStatusLine().getStatusCode() == 201 
+				if (response.getStatusLine().getStatusCode() == 201
 						|| response.getStatusLine().getStatusCode() == 202) {
 					return true;
 				}
 			}
 		} catch (IOException e) {
-			getLog().error("Fileupload did not work "+e.getMessage());
+			getLog().error("Fileupload did not work " + e.getMessage());
 			getLog().error(e);
 		}
 		return false;
 	}
-	
-	protected Space createPageWithContent(String paramContent,boolean paramCreatePageIfItDoesNotExist) throws MojoExecutionException {
+
+	protected Space createPageWithContent(String paramContent, boolean paramCreatePageIfItDoesNotExist)
+			throws MojoExecutionException {
 		Space space = getSpace(paramCreatePageIfItDoesNotExist);
 		if (space == null) {
 			throw new MojoExecutionException("Page could not be created");
-		}
-		else {
+		} else {
 			String spaceName = space.getName();
 			String relativePath = getRelativeSpacePath(space.getHome());
-			if(relativePath!=null)
-			{
-				String parentPath = relativePath.substring(0, relativePath.lastIndexOf(SPACES_PATH+spaceName));
-				createOrUpdateSpaceWebHomePage(parentPath, spaceName,paramContent);
-			}
-			else
-			{
+			if (relativePath != null) {
+				String parentPath = relativePath.substring(0, relativePath.lastIndexOf(SPACES_PATH + spaceName));
+				createOrUpdateSpaceWebHomePage(parentPath, spaceName, paramContent);
+			} else {
 				throw new MojoExecutionException("Pagecontent can not be set ");
 			}
 		}

@@ -22,6 +22,9 @@ public class XWikiRESTPageAddAttachmentMojo extends XWikiRESTAbstractMojo {
 
 	@Parameter(property = PREFIX + "pageContent", required = false, defaultValue = "")
 	private String pageContent = "";
+	
+	@Parameter(property = PREFIX + "deleteAttachementBeforeAdding", required = false, defaultValue = "false")
+	private boolean deleteAttachmentBeforeAdding = false;
 
 	@Override
 	public void execute() throws MojoExecutionException, MojoFailureException {
@@ -32,7 +35,7 @@ public class XWikiRESTPageAddAttachmentMojo extends XWikiRESTAbstractMojo {
 			space = getSpace(isCreateSpacePageIfNotExists());
 		}
 		if (space != null) {
-			boolean ok = addAttachmentToSpacePage(space, attachment);
+			boolean ok = addAttachmentToSpacePage(space, attachment,deleteAttachmentBeforeAdding);
 			if (!ok) {
 				throw new MojoExecutionException("Attachment upload failed");
 			}
