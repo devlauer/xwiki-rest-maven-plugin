@@ -16,6 +16,7 @@ public class XWikiRESTPageCreationMojo extends XWikiRESTAbstractMojo {
 	@Override
 	public void execute() throws MojoExecutionException, MojoFailureException {
 		createPageWithContent(content,true);
+		closeHTTPClient();
 	}
 
 	public String getContent() {

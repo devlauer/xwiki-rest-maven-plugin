@@ -11,6 +11,7 @@ import java.security.KeyManagementException;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.util.Calendar;
+import java.util.Collections;
 import java.util.LinkedList;
 
 import javax.net.ssl.SSLContext;
@@ -56,6 +57,10 @@ import de.elnarion.xwiki.rest.model.jaxb.Page;
 import de.elnarion.xwiki.rest.model.jaxb.Space;
 
 public abstract class XWikiRESTAbstractMojo extends AbstractMojo implements XWikiRESTMavenPluginConstants {
+
+	private static final String MIMETYPE_XML = "application/xml";
+
+	private static final String ACCEPT_HEADER = "Accept";
 
 	private static final String ATTACHMENTS_PATH = "/attachments/";
 
@@ -194,12 +199,14 @@ public abstract class XWikiRESTAbstractMojo extends AbstractMojo implements XWik
 		return httpClient;
 	}
 
-	@Override
-	protected void finalize() throws Throwable {
+	protected void closeHTTPClient() {
 		if (httpClient != null) {
-			httpClient.close();
+			try {
+				httpClient.close();
+			} catch (IOException e) {
+				getLog().info(e);
+			}
 		}
-		super.finalize();
 	}
 
 	protected LinkedList<String> getSpacesList(String paramSpacePath) {
@@ -207,8 +214,7 @@ public abstract class XWikiRESTAbstractMojo extends AbstractMojo implements XWik
 		if (paramSpacePath != null) {
 			String[] spaces = paramSpacePath.split("\\.");
 			if (spaces != null) {
-				for (String space : spaces)
-					linkedSpacesList.add(space);
+				Collections.addAll(linkedSpacesList, spaces);
 			}
 		}
 		return linkedSpacesList;
@@ -224,30 +230,30 @@ public abstract class XWikiRESTAbstractMojo extends AbstractMojo implements XWik
 			if (spacePathPointSeparated.startsWith("xwiki:"))
 				spacePathPointSeparated = spacePathPointSeparated.substring(6, spacePathPointSeparated.length());
 			LinkedList<String> spacesList = getSpacesList(spacePathPointSeparated);
-			String spacesPath = "";
+			StringBuilder spacesPathBuilder = new StringBuilder();
 			for (String space : spacesList) {
-				spacesPath = spacesPath + SPACES_PATH + space;
+				spacesPathBuilder.append(SPACES_PATH);
+				spacesPathBuilder.append(space);
 			}
-			return spacesPath;
+			return spacesPathBuilder.toString();
 		}
 		return null;
 	}
 
 	protected Space getSpace(boolean paramCreateNonExistingSpaces) {
 		LinkedList<String> spacesList = getSpacesList(spacePath);
-		String spacesPath = "";
+		StringBuilder spacesPathBuilder = new StringBuilder();
 		String parentPath = "";
 		Space spaceObject = null;
 		for (String space : spacesList) {
-			parentPath = spacesPath;
-			spacesPath = spacesPath + SPACES_PATH + space;
-			spaceObject = getSpace(spacesPath);
-			if (spaceObject == null && paramCreateNonExistingSpaces) {
-				// it is not possible to create a space directly so we need to create a WebHome
-				// Page for the space
-				if (createOrUpdateSpaceWebHomePage(parentPath, space, null)) {
-					spaceObject = getSpace(spacesPath);
-				}
+			parentPath = spacesPathBuilder.toString();
+			spacesPathBuilder.append(SPACES_PATH);
+			spacesPathBuilder.append(space);
+			spaceObject = getSpace(spacesPathBuilder.toString());
+			// it is not possible to create a space directly so we need to create a WebHome
+			// Page for the space
+			if (spaceObject == null && paramCreateNonExistingSpaces && createOrUpdateSpaceWebHomePage(parentPath, space, null)) {
+					spaceObject = getSpace(spacesPathBuilder.toString());
 			}
 			if (spaceObject == null)
 				break;
@@ -265,11 +271,11 @@ public abstract class XWikiRESTAbstractMojo extends AbstractMojo implements XWik
 		relativePath = relativePath.startsWith("/") ? relativePath : "/" + relativePath;
 		HttpPut put = new HttpPut(
 				getXwikiRestUrl() + relativePath + SPACES_PATH + paramSpaceName + PAGES_PATH + DEFAULT_PAGE_NAME);
-		put.addHeader("Accept", "application/xml");
+		put.addHeader(ACCEPT_HEADER, MIMETYPE_XML);
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
 		try {
 			getMarshaller().marshal(newPage, baos);
-			put.setEntity(new StringEntity(baos.toString(), ContentType.create("application/xml", "UTF-8")));
+			put.setEntity(new StringEntity(baos.toString(), ContentType.create(MIMETYPE_XML, "UTF-8")));
 			try (final CloseableHttpResponse response = getHttpClient().execute(put, getHttpClientContext())) {
 				if (response.getStatusLine().getStatusCode() == 201 || response.getStatusLine().getStatusCode() == 304
 						|| response.getStatusLine().getStatusCode() == 202) {
@@ -277,8 +283,7 @@ public abstract class XWikiRESTAbstractMojo extends AbstractMojo implements XWik
 				}
 			}
 		} catch (JAXBException | IOException e) {
-
-			e.printStackTrace();
+			getLog().warn(e);
 		}
 		return false;
 	}
@@ -288,16 +293,16 @@ public abstract class XWikiRESTAbstractMojo extends AbstractMojo implements XWik
 		if (relativePath != null) {
 			relativePath = relativePath.startsWith("/") ? relativePath : "/" + relativePath;
 			final HttpGet httpget = new HttpGet(getXwikiRestUrl() + paramRelativePath);
-			httpget.addHeader("Accept", "application/xml");
+			httpget.addHeader(ACCEPT_HEADER, MIMETYPE_XML);
 			getLog().info("Executing request " + httpget.getMethod() + " " + httpget.getURI());
 			try (final CloseableHttpResponse response = getHttpClient().execute(httpget, getHttpClientContext())) {
 				getLog().info(
 						response.getStatusLine().getStatusCode() + " " + response.getStatusLine().getReasonPhrase());
 				Header contentEncoding = response.getEntity().getContentEncoding();
-				String encoding = "UTF-8";
+				String spaceencoding = "UTF-8";
 				if (contentEncoding != null && contentEncoding.getValue() != null)
-					encoding = contentEncoding.getValue();
-				String content = IOUtils.toString(response.getEntity().getContent(), encoding);
+					spaceencoding = contentEncoding.getValue();
+				String content = IOUtils.toString(response.getEntity().getContent(), spaceencoding);
 				getLog().debug(content);
 				if (response.getStatusLine().getStatusCode() == 200) {
 					Unmarshaller unmarshaller = getUnmarshaller();
@@ -320,19 +325,16 @@ public abstract class XWikiRESTAbstractMojo extends AbstractMojo implements XWik
 
 	private Unmarshaller getUnmarshaller() throws JAXBException {
 		JAXBContext context = getJaxbContext();
-		Unmarshaller unmarshaller = context.createUnmarshaller();
-		return unmarshaller;
+		return context.createUnmarshaller();
 	}
 
 	private Marshaller getMarshaller() throws JAXBException {
 		JAXBContext context = getJaxbContext();
-		Marshaller marshaller = context.createMarshaller();
-		return marshaller;
+		return context.createMarshaller();
 	}
 
 	private JAXBContext getJaxbContext() throws JAXBException {
-		JAXBContext context = JAXBContext.newInstance("de.elnarion.xwiki.rest.model.jaxb");
-		return context;
+		return JAXBContext.newInstance("de.elnarion.xwiki.rest.model.jaxb");
 	}
 
 	protected boolean addAttachmentToSpacePage(Space paramSpace, File paramAttachment,
@@ -349,7 +351,7 @@ public abstract class XWikiRESTAbstractMojo extends AbstractMojo implements XWik
 		}
 		HttpPut put = new HttpPut(getXwikiRestUrl() + relativePath + PAGES_PATH + DEFAULT_PAGE_NAME + ATTACHMENTS_PATH
 				+ paramAttachment.getName());
-		put.addHeader("Accept", "application/xml");
+		put.addHeader(ACCEPT_HEADER, MIMETYPE_XML);
 		try {
 			put.setEntity(new ByteArrayEntity(IOUtils.toByteArray(new FileInputStream(paramAttachment))));
 			try (final CloseableHttpResponse response = getHttpClient().execute(put, getHttpClientContext())) {

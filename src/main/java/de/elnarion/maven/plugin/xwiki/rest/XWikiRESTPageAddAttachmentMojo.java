@@ -42,6 +42,7 @@ public class XWikiRESTPageAddAttachmentMojo extends XWikiRESTAbstractMojo {
 		} else {
 			throw new MojoExecutionException("Space for adding attachment does not exist!");
 		}
+		closeHTTPClient();
 	}
 
 	public File getAttachment() {
