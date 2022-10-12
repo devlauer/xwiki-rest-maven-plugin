@@ -1,5 +1,7 @@
 package de.elnarion.maven.plugin.xwiki.rest;
 
+import static de.elnarion.maven.plugin.xwiki.rest.XWikiRESTMavenPluginConstants.PREFIX;
+
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -7,6 +9,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.security.KeyManagementException;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
@@ -56,19 +59,11 @@ import org.apache.maven.plugins.annotations.Parameter;
 import de.elnarion.xwiki.rest.model.jaxb.Page;
 import de.elnarion.xwiki.rest.model.jaxb.Space;
 
-public abstract class XWikiRESTAbstractMojo extends AbstractMojo implements XWikiRESTMavenPluginConstants {
+public abstract class XWikiRESTAbstractMojo extends AbstractMojo  {
 
 	private static final String MIMETYPE_XML = "application/xml";
 
 	private static final String ACCEPT_HEADER = "Accept";
-
-	private static final String ATTACHMENTS_PATH = "/attachments/";
-
-	protected static final String DEFAULT_PAGE_NAME = "WebHome";
-
-	protected static final String PAGES_PATH = "/pages/";
-
-	protected static final String SPACES_PATH = "/spaces/";
 
 	/** The encoding. */
 	@Parameter(defaultValue = "${project.build.sourceEncoding}")
@@ -93,6 +88,19 @@ public abstract class XWikiRESTAbstractMojo extends AbstractMojo implements XWik
 	/** The target file name. */
 	@Parameter(property = PREFIX + "spacePath", required = true)
 	private String spacePath;
+
+	@Parameter(property = PREFIX + "restPagesPath", required = false, defaultValue="/pages/")
+	private String restPagesPath;
+
+	@Parameter(property = PREFIX + "restSpacesPath", required = false, defaultValue="/spaces/")
+	private String restSpacesPath;
+
+	@Parameter(property = PREFIX + "restAttachmentsPath", required = false, defaultValue="/attachments/")
+	private String restAttachmentsPath;
+	
+	@Parameter(property = PREFIX + "restDefaultPageName", required = false, defaultValue="WebHome")
+	private String restDefaultPageName;
+	
 
 	private CloseableHttpClient httpClient;
 
@@ -232,7 +240,7 @@ public abstract class XWikiRESTAbstractMojo extends AbstractMojo implements XWik
 			LinkedList<String> spacesList = getSpacesList(spacePathPointSeparated);
 			StringBuilder spacesPathBuilder = new StringBuilder();
 			for (String space : spacesList) {
-				spacesPathBuilder.append(SPACES_PATH);
+				spacesPathBuilder.append(restSpacesPath);
 				spacesPathBuilder.append(space);
 			}
 			return spacesPathBuilder.toString();
@@ -247,7 +255,7 @@ public abstract class XWikiRESTAbstractMojo extends AbstractMojo implements XWik
 		Space spaceObject = null;
 		for (String space : spacesList) {
 			parentPath = spacesPathBuilder.toString();
-			spacesPathBuilder.append(SPACES_PATH);
+			spacesPathBuilder.append(restSpacesPath);
 			spacesPathBuilder.append(space);
 			spaceObject = getSpace(spacesPathBuilder.toString());
 			// it is not possible to create a space directly so we need to create a WebHome
@@ -263,14 +271,14 @@ public abstract class XWikiRESTAbstractMojo extends AbstractMojo implements XWik
 
 	protected boolean createOrUpdateSpaceWebHomePage(String parentPath, String paramSpaceName, String paramContent) {
 		Page newPage = new Page();
-		newPage.setName(DEFAULT_PAGE_NAME);
+		newPage.setName(restDefaultPageName);
 		newPage.setCreated(Calendar.getInstance());
 		newPage.setModified(Calendar.getInstance());
 		newPage.setContent(paramContent);
 		String relativePath = parentPath;
-		relativePath = relativePath.startsWith("/") ? relativePath : "/" + relativePath;
+		relativePath = relativePath.startsWith("/") ? relativePath : "/" + relativePath; //NOSONAR - needed for URL
 		HttpPut put = new HttpPut(
-				getXwikiRestUrl() + relativePath + SPACES_PATH + paramSpaceName + PAGES_PATH + DEFAULT_PAGE_NAME);
+				getXwikiRestUrl() + relativePath + restSpacesPath + paramSpaceName + restPagesPath + restDefaultPageName);
 		put.addHeader(ACCEPT_HEADER, MIMETYPE_XML);
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
 		try {
@@ -289,30 +297,11 @@ public abstract class XWikiRESTAbstractMojo extends AbstractMojo implements XWik
 	}
 
 	protected Space getSpace(String paramRelativePath) {
-		String relativePath = paramRelativePath;
-		if (relativePath != null) {
-			relativePath = relativePath.startsWith("/") ? relativePath : "/" + relativePath;
-			final HttpGet httpget = new HttpGet(getXwikiRestUrl() + paramRelativePath);
-			httpget.addHeader(ACCEPT_HEADER, MIMETYPE_XML);
+		if (paramRelativePath != null) {
+			final HttpGet httpget = createHttpGetRequest(paramRelativePath);
 			getLog().info("Executing request " + httpget.getMethod() + " " + httpget.getURI());
 			try (final CloseableHttpResponse response = getHttpClient().execute(httpget, getHttpClientContext())) {
-				getLog().info(
-						response.getStatusLine().getStatusCode() + " " + response.getStatusLine().getReasonPhrase());
-				Header contentEncoding = response.getEntity().getContentEncoding();
-				String spaceencoding = "UTF-8";
-				if (contentEncoding != null && contentEncoding.getValue() != null)
-					spaceencoding = contentEncoding.getValue();
-				String content = IOUtils.toString(response.getEntity().getContent(), spaceencoding);
-				getLog().debug(content);
-				if (response.getStatusLine().getStatusCode() == 200) {
-					Unmarshaller unmarshaller = getUnmarshaller();
-					Object space = unmarshaller.unmarshal(new ByteArrayInputStream(content.getBytes()));
-					if (space instanceof Space && ((Space) space).getHome() != null) {
-						return (Space) space;
-					}
-				} else {
-					getLog().info("Space " + paramRelativePath + "could not be found, returning null");
-				}
+				return handleHttpGetResult(paramRelativePath, response);
 			} catch (JAXBException | UnsupportedOperationException | IOException e) {
 				getLog().error("Exception during space resolving " + e.getMessage());
 				getLog().error(e);
@@ -321,6 +310,41 @@ public abstract class XWikiRESTAbstractMojo extends AbstractMojo implements XWik
 			getLog().info("No relative path for xwiki space set returning null");
 		}
 		return null;
+	}
+
+	private Space handleHttpGetResult(String paramRelativePath, final CloseableHttpResponse response)
+			throws IOException, JAXBException {
+		getLog().info(
+				response.getStatusLine().getStatusCode() + " " + response.getStatusLine().getReasonPhrase());
+		Header contentEncoding = response.getEntity().getContentEncoding();
+		String spaceencoding = StandardCharsets.UTF_8.name();
+		if (contentEncoding != null && contentEncoding.getValue() != null)
+			spaceencoding = contentEncoding.getValue();
+		String content = IOUtils.toString(response.getEntity().getContent(), spaceencoding);
+		getLog().debug(content);
+		if (response.getStatusLine().getStatusCode() == 200) {
+			return unmarshalSpaceResult(content);
+		} else {
+			getLog().info("Space " + paramRelativePath + "could not be found, returning null");
+		}
+		return null;
+	}
+
+	private HttpGet createHttpGetRequest(String paramRelativePath ) {
+		String relativePath = paramRelativePath.startsWith("/") ? paramRelativePath : "/" + paramRelativePath; //NOSONAR - needed for URL
+		final HttpGet httpget = new HttpGet(getXwikiRestUrl() + relativePath);
+		httpget.addHeader(ACCEPT_HEADER, MIMETYPE_XML);
+		return httpget;
+	}
+
+	private Space unmarshalSpaceResult(String content) throws JAXBException {
+		Unmarshaller unmarshaller = getUnmarshaller();
+		Object space = unmarshaller.unmarshal(new ByteArrayInputStream(content.getBytes()));
+		if (space instanceof Space && ((Space) space).getHome() != null) {
+			return (Space) space;
+		}
+		else
+			return null;
 	}
 
 	private Unmarshaller getUnmarshaller() throws JAXBException {
@@ -341,15 +365,16 @@ public abstract class XWikiRESTAbstractMojo extends AbstractMojo implements XWik
 			boolean deleteAttachmentBeforeAdding) {
 		String relativePath = getRelativeSpacePath(paramSpace.getHome());
 		if (deleteAttachmentBeforeAdding) {
-			HttpDelete delete = new HttpDelete(getXwikiRestUrl() + relativePath + PAGES_PATH + DEFAULT_PAGE_NAME
-					+ ATTACHMENTS_PATH + paramAttachment.getName());
+			HttpDelete delete = new HttpDelete(getXwikiRestUrl() + relativePath + restPagesPath + restDefaultPageName
+					+ restAttachmentsPath + paramAttachment.getName());
 			try (final CloseableHttpResponse response = getHttpClient().execute(delete, getHttpClientContext())) {
+				//NOSONAR - only use autocloseable
 			} catch (IOException e) {
 				getLog().warn("Could not delete Attachment before adding " + e.getMessage());
 				getLog().warn(e);
 			}
 		}
-		HttpPut put = new HttpPut(getXwikiRestUrl() + relativePath + PAGES_PATH + DEFAULT_PAGE_NAME + ATTACHMENTS_PATH
+		HttpPut put = new HttpPut(getXwikiRestUrl() + relativePath + restPagesPath + restDefaultPageName + restAttachmentsPath
 				+ paramAttachment.getName());
 		put.addHeader(ACCEPT_HEADER, MIMETYPE_XML);
 		try {
@@ -376,13 +401,37 @@ public abstract class XWikiRESTAbstractMojo extends AbstractMojo implements XWik
 			String spaceName = space.getName();
 			String relativePath = getRelativeSpacePath(space.getHome());
 			if (relativePath != null) {
-				String parentPath = relativePath.substring(0, relativePath.lastIndexOf(SPACES_PATH + spaceName));
+				String parentPath = relativePath.substring(0, relativePath.lastIndexOf(restSpacesPath + spaceName));
 				createOrUpdateSpaceWebHomePage(parentPath, spaceName, paramContent);
 			} else {
 				throw new MojoExecutionException("Pagecontent can not be set ");
 			}
 		}
 		return space;
+	}
+
+	public String getRestPagesPath() {
+		return restPagesPath;
+	}
+
+	public void setRestPagesPath(String restPagesPath) {
+		this.restPagesPath = restPagesPath;
+	}
+
+	public String getRestSpacesPath() {
+		return restSpacesPath;
+	}
+
+	public void setRestSpacesPath(String restSpacesPath) {
+		this.restSpacesPath = restSpacesPath;
+	}
+
+	public String getRestAttachmentsPath() {
+		return restAttachmentsPath;
+	}
+
+	public void setRestAttachmentsPath(String restAttachmentsPath) {
+		this.restAttachmentsPath = restAttachmentsPath;
 	}
 
 }

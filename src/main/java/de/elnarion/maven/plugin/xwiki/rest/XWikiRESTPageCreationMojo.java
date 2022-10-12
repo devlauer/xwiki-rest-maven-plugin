@@ -1,5 +1,7 @@
 package de.elnarion.maven.plugin.xwiki.rest;
 
+import static de.elnarion.maven.plugin.xwiki.rest.XWikiRESTMavenPluginConstants.PREFIX;
+
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugins.annotations.LifecyclePhase;

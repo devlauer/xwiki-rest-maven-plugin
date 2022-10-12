@@ -1,5 +1,7 @@
 package de.elnarion.maven.plugin.xwiki.rest;
 
+import static de.elnarion.maven.plugin.xwiki.rest.XWikiRESTMavenPluginConstants.PREFIX;
+
 import java.io.File;
 
 import org.apache.maven.plugin.MojoExecutionException;
