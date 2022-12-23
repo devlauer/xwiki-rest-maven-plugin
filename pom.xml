@@ -13,7 +13,7 @@
 	<properties>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<mavenVersion>3.3.9</mavenVersion>
+		<mavenVersion>3.8.6</mavenVersion>
 		<java.version>8</java.version>
 	</properties>
 
