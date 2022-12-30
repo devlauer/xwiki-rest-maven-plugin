@@ -11,8 +11,6 @@
 	<version>0.10.1-SNAPSHOT</version>
 
 	<properties>
-		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<mavenVersion>3.6.0</mavenVersion>
 		<java.version>8</java.version>
 		<sonar.organization>devlauer</sonar.organization>
@@ -30,12 +28,6 @@
 			<url>https://www.gnu.org/licenses/old-licenses/lgpl-2.1.txt</url>
 		</license>
 	</licenses>
-
-	<scm>
-		<connection>scm:git:ssh://git@github.com/devlauer/xwiki-rest-maven-plugin.git</connection>
-		<developerConnection>scm:git:ssh://git@github.com/devlauer/xwiki-rest-maven-plugin.git</developerConnection>
-		<url>https://github.com/devlauer/xwiki-rest-maven-plugin/tree/master</url>
-	</scm>
 
 	<dependencies>
 		<!-- maven -->
@@ -138,5 +130,11 @@
 			</plugin>
 		</plugins>
 	</build>
+
+	<scm>
+		<connection>scm:git:ssh://git@github.com/devlauer/xwiki-rest-maven-plugin.git</connection>
+		<developerConnection>scm:git:ssh://git@github.com/devlauer/xwiki-rest-maven-plugin.git</developerConnection>
+		<url>https://github.com/devlauer/xwiki-rest-maven-plugin/tree/master</url>
+	</scm>
 
 </project>
