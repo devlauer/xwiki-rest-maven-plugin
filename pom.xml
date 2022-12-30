@@ -33,7 +33,6 @@
 		<connection>scm:git:ssh://git@github.com/devlauer/xwiki-rest-maven-plugin.git</connection>
 		<developerConnection>scm:git:ssh://git@github.com/devlauer/xwiki-rest-maven-plugin.git</developerConnection>
 		<url>https://github.com/devlauer/xwiki-rest-maven-plugin/tree/master</url>
-		<tag>HEAD</tag>
 	</scm>
 
 	<dependencies>
