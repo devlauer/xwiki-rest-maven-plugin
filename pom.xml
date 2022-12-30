@@ -22,16 +22,6 @@
 		<url>https://github.com/devlauer/xwiki-rest-maven-plugin/issues</url>
 	</issueManagement>
 
-	<developers>
-		<developer>
-			<id>devlauer</id>
-			<name>Lauer</name>
-			<email>dev.lauer@elnarion.de</email>
-			<url>https://github.com/devlauer</url>
-			<timezone>+1:00</timezone>
-		</developer>
-	</developers>
-
 	<licenses>
 		<license>
 			<name>GNU General Lesser Public License (LGPL) version 2.1</name>
