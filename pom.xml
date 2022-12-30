@@ -5,30 +5,25 @@
 		<artifactId>elnarion-parent-pom</artifactId>
 		<version>2.0.2</version>
 	</parent>
-
 	<artifactId>xwiki-rest-maven-plugin</artifactId>
 	<packaging>maven-plugin</packaging>
 	<version>0.10.1-SNAPSHOT</version>
-
 	<properties>
 		<mavenVersion>3.6.0</mavenVersion>
 		<java.version>8</java.version>
 		<sonar.organization>devlauer</sonar.organization>
 		<sonar.host.url>https://sonarcloud.io</sonar.host.url>
 	</properties>
-
 	<issueManagement>
 		<system>jira</system>
 		<url>https://github.com/devlauer/xwiki-rest-maven-plugin/issues</url>
 	</issueManagement>
-
 	<licenses>
 		<license>
 			<name>GNU General Lesser Public License (LGPL) version 2.1</name>
 			<url>https://www.gnu.org/licenses/old-licenses/lgpl-2.1.txt</url>
 		</license>
 	</licenses>
-
 	<dependencies>
 		<!-- maven -->
 		<dependency>
@@ -55,7 +50,6 @@
 			<version>${mavenVersion}</version>
 			<scope>provided</scope>
 		</dependency>
-
 		<!-- dependencies to annotations -->
 		<dependency>
 			<groupId>org.apache.maven.plugin-tools</groupId>
@@ -107,7 +101,6 @@
 			<version>2.11.0</version>
 		</dependency>
 	</dependencies>
-
 	<build>
 		<plugins>
 			<plugin>
@@ -128,13 +121,32 @@
 					</execution>
 				</executions>
 			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-toolchains-plugin</artifactId>
+				<version>3.1.0</version>
+				<configuration>
+					<toolchains>
+						<!-- this project needs a JDK toolchain, version 15 -->
+						<jdk>
+							<version>11</version>
+						</jdk>
+					</toolchains>
+				</configuration>
+				<executions>
+					<execution>
+						<goals>
+							<goal>toolchain</goal>
+						</goals>
+						<!-- the toolchain goal binds to the validate phase automatically -->
+					</execution>
+				</executions>
+			</plugin>
 		</plugins>
 	</build>
-
 	<scm>
 		<connection>scm:git:ssh://git@github.com/devlauer/xwiki-rest-maven-plugin.git</connection>
 		<developerConnection>scm:git:ssh://git@github.com/devlauer/xwiki-rest-maven-plugin.git</developerConnection>
 		<url>https://github.com/devlauer/xwiki-rest-maven-plugin/tree/master</url>
 	</scm>
-
 </project>
