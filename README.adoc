@@ -1,0 +1,13 @@
+= xwiki-rest-maven-plugin
+
+image:https://sonarcloud.io/api/project_badges/measure?project=devlauer_xwiki-rest-maven-plugin&metric=ncloc["Lines of Code", link="https://sonarcloud.io/summary/new_code?id=devlauer_xwiki-rest-maven-plugin"]
+image:https://sonarcloud.io/api/project_badges/measure?project=devlauer_xwiki-rest-maven-plugin&metric=security_rating["Security Rating", link="https://sonarcloud.io/summary/new_code?id=devlauer_xwiki-rest-maven-plugin"]
+image:https://sonarcloud.io/api/project_badges/measure?project=devlauer_xwiki-rest-maven-plugin&metric=vulnerabilities["Vulnerabilities", link="https://sonarcloud.io/summary/new_code?id=devlauer_xwiki-rest-maven-plugin"]
+image:https://sonarcloud.io/api/project_badges/measure?project=devlauer_xwiki-rest-maven-plugin&metric=sqale_rating["Maintainability Rating", link="https://sonarcloud.io/summary/new_code?id=devlauer_xwiki-rest-maven-plugin"]
+image:https://sonarcloud.io/api/project_badges/measure?project=devlauer_xwiki-rest-maven-plugin&metric=coverage["Coverage", link="https://sonarcloud.io/summary/new_code?id=devlauer_xwiki-rest-maven-plugin"]
+image:https://github.com/devlauer/xwiki-rest-maven-plugin/actions/workflows/verify.yml/badge.svg["mvn verify"]
+
+
+== Description
+
+A maven plugin to create, modify xwiki pages and add attachments to them.
