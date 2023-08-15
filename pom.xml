@@ -9,7 +9,7 @@
 	<packaging>maven-plugin</packaging>
 	<version>0.10.1-SNAPSHOT</version>
 	<properties>
-		<mavenVersion>3.6.0</mavenVersion>
+		<mavenVersion>3.8.1</mavenVersion>
 		<java.version>8</java.version>
 		<sonar.organization>devlauer</sonar.organization>
 		<sonar.host.url>https://sonarcloud.io</sonar.host.url>
